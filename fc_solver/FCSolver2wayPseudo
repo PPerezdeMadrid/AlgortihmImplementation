@@ -1,0 +1,79 @@
+package fc_solver;
+
+import fc_solver.BinaryTuple;
+
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Map;
+
+
+public class FCSolver2wayPseudo{
+    public StringBuilder solve(ArrayList<HashSet<Integer>> domains, HashMap<Arc,ArrayList<BinaryTuple>> constraints){
+        int nvar = domains.size();
+        int[] assignments = new int[nvar];
+
+        StringBuilder sb = new StringBuilder();
+
+        forwardChecking(0, assignments, domains, constraints, sb);
+
+        return sb;
+    }
+
+    private void forwardChecking(int depth, int[] assignments, ArrayList<HashSet<Integer>> domains, HashMap<Arc,ArrayList<BinaryTuple>> constraints){
+        if(depth == n){ //completeAssignment()
+            sb.append("Solution found! \n");
+            for(int i = 0; i<n;i++){
+                sb.append("==> Variable ").append(i).append(" : ").append(assignments[i]).append("\n");
+            }
+            return;
+        }
+
+        var = selectVar(assignments);
+        val = selectVal(assignments, domains);
+
+        branchFCLeft(assignments, var, val);
+        branchRight(assignments, var, val);
+    }
+
+    private int selectVar(int[] assignments){
+        return 0;
+    }
+
+    private int selectVal(int[] assignments, ArrayList<HashSet<Integer>> domains ){
+        return 0;
+    }
+
+    private void branchFCLeft(int[] assignments, int var, int val){
+        assignments[var]=val;
+        if(reviseFutureArcs(assignments, var)){
+            forwardChecking(depth, assignments-var, domains, constraints);
+        }
+        undoPruning();
+        assignments[var] = -1;
+
+    }
+
+    private void branchRight(int[] assignments, int var, int val){
+        deleteValue(var, val);
+        if (!domain(var).isEmpty){
+            if(reviseFutureArcs(assignments, var)){
+                forwardChecking(depth, assignments, domains, constraints);
+            }
+            undoPruning();
+        }
+        restoreValue(var,val);
+    }
+
+    private boolean reviseFutureArcs(int[] varList, int var){
+        boolean consistent = true;
+        for(int futureVar= varList[0]; furureVar != var; futureVar++){ //  Foreach futureVar in varList where futureVar≠var:
+            consistent = revise(futureVar, var);
+            // Prunes domain D(futureVar)
+            if(!consistent) return false;
+            // • consistent becomes false iff a domain is emptied by revise
+        }
+        return true;
+    }
+}

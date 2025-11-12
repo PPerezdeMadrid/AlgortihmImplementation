@@ -1,0 +1,106 @@
+package fc_solver;
+
+import fc_solver.Arc;
+import fc_solver.BinaryTuple;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+
+public class FCSolverBackup{
+    boolean foundSolution;
+
+    public StringBuilder solve(ArrayList<HashSet<Integer>> domains, HashMap<Arc, ArrayList<BinaryTuple>> constraints){
+        StringBuilder sb = new StringBuilder();
+        sb.append("=========== Starting the FC solver... =========== \n");
+
+        int nvar = domains.size();
+        int[] assignments = new int[nvar];
+        
+        forwardChecking(0, assignments, domains, constraints, sb);
+
+        if(!foundSolution){
+            sb.append("No solution found :(");
+        }
+
+        return sb;
+    }
+
+
+    private void forwardChecking(int depth, int[] assignments, ArrayList<HashSet<Integer>> domains, HashMap<Arc, ArrayList<BinaryTuple>> constraints, StringBuilder sb ){
+        int n = domains.size();
+
+        if(depth == n){
+            foundSolution = true;
+            sb.append("One Solution found: \n");
+            for(int i =0; i < n; i++){
+                sb.append("     ==> Variable ").append(i).append(" : ").append(assignments[i]).append("\n");
+            }
+            return;
+        }
+
+        for(int d: domains.get(depth)){
+            assignments[depth] = d;
+            boolean consistent = true;
+
+            // SAVE DOMAINS!!!
+            ArrayList<HashSet<Integer>> savedDomains = deepCopyDomains(domains);
+
+            for(int future = depth+1; future<n && consistent; future++){
+                consistent = revise(future, depth, assignments, domains, constraints);
+            }
+
+            if(consistent) forwardChecking(depth+1, assignments, domains, constraints, sb);
+
+            // Undo pruning --> REVISAR
+            for(int i = 0; i<n; i++){
+                domains.set(i, new HashSet<>(savedDomains.get(i)));
+            }
+            assignments[depth] = -1;
+        }
+
+    }
+
+    private boolean revise (int futureVar, int currentVar, int[] assignments, ArrayList<HashSet<Integer>> domains, HashMap<Arc, ArrayList<BinaryTuple>> constraints){
+        
+        int valCurrent = assignments[currentVar];
+        Arc arc = new Arc(futureVar, currentVar);
+
+        ArrayList<BinaryTuple> allowed = constraints.get(arc);
+
+        if(allowed == null) return true;
+
+        // Si hay restricciones --> creamos un nuevo dominio
+        HashSet<Integer> newDomain = new HashSet<>();
+
+        for(int valFuture: domains.get(futureVar)){
+            boolean supported = false;
+            for(BinaryTuple tuple: allowed){
+                if(tuple.firstVal()==valFuture && tuple.secondVal()==valCurrent){
+                    supported = true;
+                    break;
+                }
+            }
+            if(supported) newDomain.add(valFuture);
+        }
+
+        //Despues de ir revisando y todo, actualizamos dominio 
+        domains.set(futureVar, newDomain);
+        return !newDomain.isEmpty();
+    }
+
+    private ArrayList<HashSet<Integer>> deepCopyDomains( ArrayList<HashSet<Integer>> originalDomains){
+        int n = originalDomains.size();
+        ArrayList<HashSet<Integer>> copy = new ArrayList<>(); 
+
+        for(HashSet<Integer> domain: originalDomains){
+            copy.add(new HashSet<>(domain));
+        }
+        
+        return copy;
+    }
+
+}

@@ -1,4 +1,4 @@
-package solvers;
+package fc_solver;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -7,24 +7,25 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Stack;
+import java.util.*;
 
 public class ProblemPrinter {
-    public int nvar;             // number of variables in the problem
+    protected int nvar;             // number of variables in the problem
 
     // A list of the variable domains, indexed by variable ID (its number)
     // Each domain is treated as a set of integers.
-    public ArrayList<HashSet<Integer>> domains = new ArrayList<>(); 
+    protected ArrayList<HashSet<Integer>> domains = new ArrayList<>(); 
     
     // The problem constraints. Those are a map from an arc to a list of 
     // valid tuples. That is, a table constraint for two variables. Note
     // that both Arc and BinaryTuple are custom implementations.
-    public HashMap<Arc, ArrayList<BinaryTuple>> constraints = new HashMap<>(); // the problem constraints
+    protected HashMap<Arc, ArrayList<BinaryTuple>> constraints = new HashMap<>(); // the problem constraints
 
     // Printing mode
-    public String mode;
-    public boolean run_solver;
-    public StringBuilder sb_solver;
-    public String solver_option;
+    protected String mode;
+    protected Boolean run_solver;
+    protected StringBuilder sb_solver;
+    protected String solver_type;
 
     /**
      * 
@@ -37,10 +38,7 @@ public class ProblemPrinter {
      * - The `constraints` map with all binary constraints in both directions for easy querying.
      * - The printing mode for later use in the `toString` method.
      */
-    public ProblemPrinter(BinaryCSP csp, String mode, boolean run_solver, String solver_option) {
-        this.run_solver = run_solver;
-        this.solver_option = solver_option;
-
+    protected ProblemPrinter(BinaryCSP csp, String mode, Boolean run_solver, String solver_type) {
         this.nvar = csp.getNoVariables(); 
         int[][] domainBounds = csp.getDomainBounds();
         for (int i = 0; i < domainBounds.length; i++) {
@@ -62,92 +60,74 @@ public class ProblemPrinter {
 
         // finally we store the printing mode
         this.mode = mode;
-        
-        System.out.println("You chose: "+(run_solver));
-        if (run_solver){
-            BinaryCSPSolver solver = new BinaryCSPSolver();
-            if(solver_option.equals("A")) sb_solver = solver.solve(csp, domains, constraints);
-            if (solver_option.equals("B")) sb_solver = solver.solve_bnb(csp, domains, constraints);
-            if(solver_option.equals("C")) sb_solver = solver.solve_FC_dway(csp, domains, constraints);
-        }
 
+        this.run_solver = run_solver;
+        this.solver_type = solver_type;
+
+        if(run_solver){
+            if("A".equalsIgnoreCase(solver_type)){
+                FCSolver solver = new FCSolver();
+                sb_solver = solver.solve(domains, constraints);
+            }
+            if("B".equalsIgnoreCase(solver_type)){
+                FCSolver2way solver = new FCSolver2way();
+                sb_solver = solver.solve(domains, constraints);  
+            }
+
+        }
     }
 
     /**
      * @return A string representing the current state.
-     
+     */
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
         // TODO: implement different printing modes
-        return sb.toString();
-    }*/
-
-    @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder();
-
         if ("verbose".equalsIgnoreCase(mode)) {
-            sb.append("-- BinaryCSP: --\n");
+            sb.append("Verbose mode chosen: \n");
             sb.append("Number of variables: ").append(nvar).append("\n");
 
-            // --- Domains ---
-            sb.append("Domains:\n");
-            for (int i = 0; i < domains.size(); i++) {
-                sb.append("  Variable ").append(i).append(": ");
-                sb.append(domains.get(i));
-                sb.append("\n");
+            sb.append("==== Domains: ==== \n");
+            for (int i = 0; i<domains.size(); i++){
+                sb.append(domains.get(i)).append("\n");
             }
 
-            sb.append("\nConstraints:\n");
-            // We use a HashSet to avoid printing both (Xi,Xj) and (Xj,Xi)
+            sb.append("==== Constraints: ==== \n");
             HashSet<String> printed = new HashSet<>();
 
-            for (Map.Entry<Arc, ArrayList<BinaryTuple>> entry : constraints.entrySet()) {
+            for(Map.Entry<Arc, ArrayList<BinaryTuple>> entry: constraints.entrySet()){
+                // sb.append(entry);
                 Arc arc = entry.getKey();
                 ArrayList<BinaryTuple> tuples = entry.getValue();
 
-                // Avoid duplicate printing of reversed arcs
-                String key1 = arc.getFirstVar() + "," + arc.getSecondVar();
-                String key2 = arc.getSecondVar() + "," + arc.firstVar();
-                if(printed.contains(key2)) continue;
-                printed.add(key1);
+                // Evitar las reversas
+                String key = arc.getFirstVar() + "," + arc.getSecondVar() ;
+                printed.add(key);
 
-                sb.append("  ")
-                .append(arc.getFirstVar())
-                .append(" ")
-                .append(arc.getSecondVar())
-                .append(": [");
+                sb.append("[").append(arc.getFirstVar()).append(",").append(arc.getSecondVar()).append("] : [");
 
-                for (int i = 0; i < tuples.size(); i++) {
-                    sb.append(tuples.get(i).toString());
-                    if (i < tuples.size() - 1)
-                        sb.append(", "); // separador entre tuplas
+                for(int i=0; i<tuples.size(); i++){
+                    sb.append(tuples.get(i));
+                    if(i < tuples.size() -1) sb.append(", ");
                 }
-                sb.append("]");
-                sb.append("\n");
+
+                sb.append(" ] \n");
+                
             }
 
-        } else if ("compact".equalsIgnoreCase(mode)) {
-            sb.append("-- BinaryCSP: --\n");
+        } else if("compact".equalsIgnoreCase(mode)){
+            sb.append("Compact mode chosen: \n");
             sb.append("Number of variables: ").append(nvar).append("\n");
-            sb.append("Domains:\n");
+            sb.append("Domains: \n");
 
-            for (int i = 0; i < domains.size(); i++) {
-                sb.append("  Variable ").append(i).append(": ");
-                sb.append(domains.get(i).toString());
-                sb.append("\n");
-            }
         } else {
-            sb.append("[Unknown printing mode: ").append(mode).append("]\n");
-            sb.append("Use 'verbose' or 'compact'.\n");
+            sb.append("Unknown mode. Available modes are 'verbose' and 'compact'.\n");
         }
 
         if(run_solver){
-            sb.append(sb_solver);
+            sb.append(this.sb_solver);
         }
-
         return sb.toString();
     }
-
 }

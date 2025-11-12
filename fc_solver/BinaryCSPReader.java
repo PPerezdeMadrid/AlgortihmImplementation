@@ -1,4 +1,4 @@
-package fc_solvers;
+package fc_solver;
 import java.io.*;
 import java.util.*;
 
